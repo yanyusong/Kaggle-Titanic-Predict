@@ -19,8 +19,16 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import Perceptron,SGDClassifier
 from sklearn.tree import DecisionTreeClassifier
 
-train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/train.csv")
-test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/test.csv")
+from sklearn import cross_validation
+from sklearn import metrics
+from sklearn.model_selection import GridSearchCV
+from sklearn.learning_curve import learning_curve
+from sklearn import preprocessing
+import xgboost as xgb
+# from sklearn.model_selection import train_test_split
+
+train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/train.csv")
+test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/test.csv")
 #%%
 '''
 数据分析
@@ -199,8 +207,8 @@ def drop(df):
 # Rare里的Age，因为Rare本身就比较稀少，取众数容易有很大误差，
 # 所以Rare里的male取所有male里的众数，female取所有female里的众数
 def get_agebandnum_by_title(title,sex=None):
-    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/train.csv")
-    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/test.csv")
+    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/train.csv")
+    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/test.csv")
     df = train_df.append(test_df)
 
     df['Title'] = df['Name'].str.extract('([a-zA-Z]+)\.',expand=False)
@@ -213,15 +221,21 @@ def get_agebandnum_by_title(title,sex=None):
 
     df.drop('Name',axis=1,inplace=True)
     # 将 Age 分组用序号替换
+    # df.loc[df['Age']<10,'Age']=0
+    # df.loc[(df['Age']>=10) & (df['Age']<20),'Age']=1
+    # df.loc[(df['Age']>=20) & (df['Age']<30),'Age']=2
+    # df.loc[(df['Age']>=30) & (df['Age']<40),'Age']=3
+    # df.loc[(df['Age']>=40) & (df['Age']<50),'Age']=4
+    # df.loc[(df['Age']>=50) & (df['Age']<60),'Age']=5
+    # df.loc[(df['Age']>=60) & (df['Age']<70),'Age']=6
+    # df.loc[(df['Age']>=70) & (df['Age']<80),'Age']=7
+    # df.loc[df['Age']>=80,'Age']=8
+
     df.loc[df['Age']<10,'Age']=0
     df.loc[(df['Age']>=10) & (df['Age']<20),'Age']=1
-    df.loc[(df['Age']>=20) & (df['Age']<30),'Age']=2
-    df.loc[(df['Age']>=30) & (df['Age']<40),'Age']=3
-    df.loc[(df['Age']>=40) & (df['Age']<50),'Age']=4
-    df.loc[(df['Age']>=50) & (df['Age']<60),'Age']=5
-    df.loc[(df['Age']>=60) & (df['Age']<70),'Age']=6
-    df.loc[(df['Age']>=70) & (df['Age']<80),'Age']=7
-    df.loc[df['Age']>=80,'Age']=8
+    df.loc[(df['Age']>=20) & (df['Age']<50),'Age']=2
+    df.loc[(df['Age']>=50) & (df['Age']<70),'Age']=3
+    df.loc[df['Age']>=70,'Age']=4
 
     temp = 0
     if title !='Rare':
@@ -233,8 +247,8 @@ def get_agebandnum_by_title(title,sex=None):
 
 # 获取fare band num 的众数
 def get_farebandnum():
-    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/train.csv")
-    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/test.csv")
+    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/train.csv")
+    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/test.csv")
     df = train_df.append(test_df)
 
     df.loc[df['Fare']<=100,'Fare']=0
@@ -247,8 +261,8 @@ def get_farebandnum():
 
 # 获取embarked num 的众数
 def get_embarkednum():
-    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/train.csv")
-    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/test.csv")
+    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/train.csv")
+    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/test.csv")
     df = train_df.append(test_df)
 
      # Embarked(1.补缺失值 2、转换成数字序号)
@@ -280,15 +294,22 @@ def handleDf(df):
 
     df.drop('Name',axis=1,inplace=True)
     # 将 Age 分组用序号替换
+    # df.loc[df['Age']<10,'Age']=0
+    # df.loc[(df['Age']>=10) & (df['Age']<20),'Age']=1
+    # df.loc[(df['Age']>=20) & (df['Age']<30),'Age']=2
+    # df.loc[(df['Age']>=30) & (df['Age']<40),'Age']=3
+    # df.loc[(df['Age']>=40) & (df['Age']<50),'Age']=4
+    # df.loc[(df['Age']>=50) & (df['Age']<60),'Age']=5
+    # df.loc[(df['Age']>=60) & (df['Age']<70),'Age']=6
+    # df.loc[(df['Age']>=70) & (df['Age']<80),'Age']=7
+    # df.loc[df['Age']>=80,'Age']=8
+
     df.loc[df['Age']<10,'Age']=0
     df.loc[(df['Age']>=10) & (df['Age']<20),'Age']=1
-    df.loc[(df['Age']>=20) & (df['Age']<30),'Age']=2
-    df.loc[(df['Age']>=30) & (df['Age']<40),'Age']=3
-    df.loc[(df['Age']>=40) & (df['Age']<50),'Age']=4
-    df.loc[(df['Age']>=50) & (df['Age']<60),'Age']=5
-    df.loc[(df['Age']>=60) & (df['Age']<70),'Age']=6
-    df.loc[(df['Age']>=70) & (df['Age']<80),'Age']=7
-    df.loc[df['Age']>=80,'Age']=8
+    df.loc[(df['Age']>=20) & (df['Age']<50),'Age']=2
+    df.loc[(df['Age']>=50) & (df['Age']<70),'Age']=3
+    df.loc[df['Age']>=70,'Age']=4
+
     # temp = df[df['Age'].isnull()] # Age有缺失值的df
     # print(df['Age'].value_counts(dropna=False))
 
@@ -325,15 +346,16 @@ def handleDf(df):
     # print(df['Embarked'].value_counts(dropna=False))
 
     # 根据 逻辑回归的 baseline 和 相关性分析
-    df['Sex*Pclass'] = df['Sex'] * df['Pclass']
+    # df['Sex*Pclass'] = df['Sex'] * df['Pclass']
+    # df['Sex*Age'] = df['Sex'] * df['Age']
     # df['Sex*Embarked'] = df['Sex'] * df['Embarked']
     # df['Embarked*Pclass'] = df['Embarked'] * df['Pclass']
 
     return df
 
 # debug
-# train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/train.csv")
-# test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/test.csv")
+# train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/train.csv")
+# test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/test.csv")
 
 # #drop
 # #handle
@@ -346,9 +368,112 @@ def handleDf(df):
 # df.head()
 
 #%%
+# 画学习曲线
+def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
+                        n_jobs=1, train_sizes=np.linspace(.05, 1., 20)):
+    """
+    Generate a simple plot of the test and traning learning curve.
+
+    Parameters
+    ----------
+    estimator : object type that implements the "fit" and "predict" methods
+        An object of that type which is cloned for each validation.
+
+    title : string
+        Title for the chart.
+
+    X : array-like, shape (n_samples, n_features)
+        Training vector, where n_samples is the number of samples and
+        n_features is the number of features.
+
+    y : array-like, shape (n_samples) or (n_samples, n_features), optional
+        Target relative to X for classification or regression;
+        None for unsupervised learning.
+
+    ylim : tuple, shape (ymin, ymax), optional
+        Defines minimum and maximum yvalues plotted.
+
+    cv : integer, cross-validation generator, optional
+        If an integer is passed, it is the number of folds (defaults to 3).
+        Specific cross-validation objects can be passed, see
+        sklearn.cross_validation module for the list of possible objects
+
+    n_jobs : integer, optional
+        Number of jobs to run in parallel (default 1).
+    """
+    plt.figure()
+    plt.title(title)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.xlabel("Training examples")
+    plt.ylabel("Score")
+    train_sizes, train_scores, test_scores = learning_curve(
+        estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes)
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+    plt.grid()
+
+    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1,
+                     color="r")
+    plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
+                     test_scores_mean + test_scores_std, alpha=0.1, color="g")
+    plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
+             label="Training score")
+    plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
+             label="Cross-validation score")
+
+    plt.legend(loc="best")
+    return plt
+
+def cul_score(estimator,X,y,cv=4):
+    # 交叉验证得分
+    scores = cross_validation.cross_val_score(estimator,X,y,cv=cv)
+    print(scores)
+    print('Accuracy: %0.5f (+/- %0.2f)' % (scores.mean(),scores.std()*2))
+    #F1 score
+    scores = cross_validation.cross_val_score(estimator,X,y,cv=cv,scoring = 'f1_weighted')
+    print(scores)
+    print('F1 score : %0.5f (+/- %0.2f)' % (scores.mean(),scores.std()*2))
+    
+def modelfit(alg, dtrain_x,dtrain_y, dtest,useTrainCV=True, cv_folds=5, early_stopping_rounds=50):
+    
+    if useTrainCV:
+        xgb_param = alg.get_xgb_params()
+        xgtrain = xgb.DMatrix(dtrain_x.values, label=dtrain_y.values)
+        xgtest = xgb.DMatrix(dtest.values)
+        cvresult = xgb.cv(xgb_param, xgtrain, num_boost_round=alg.get_params()['n_estimators'], nfold=cv_folds,
+            metrics='auc', early_stopping_rounds=early_stopping_rounds,verbose_eval=True)
+        alg.set_params(n_estimators=cvresult.shape[0])
+    
+    #Fit the algorithm on the data
+    alg.fit(dtrain_x, dtrain_y,eval_metric='auc')
+        
+    #Predict training set:
+    dtrain_predictions = alg.predict(dtrain_x)
+    dtrain_predprob = alg.predict_proba(dtrain_x)[:,1]
+        
+    #Print model report:
+    print("\nModel Report")
+    print("Accuracy : %.4g" % metrics.accuracy_score(dtrain_y.values, dtrain_predictions))
+    print("AUC Score (Train): %f" % metrics.roc_auc_score(dtrain_y, dtrain_predprob))
+    
+#     Predict on testing data:
+    # dtest['predprob'] = alg.predict_proba(dtest)[:,1]
+    # results = test_results.merge(dtest[['ID','predprob']], on='ID')
+    # print 'AUC Score (Test): %f' % metrics.roc_auc_score(results['Disbursed'], results['predprob'])
+                
+    feat_imp = pd.Series(alg.get_booster().get_fscore()).sort_values(ascending=False)
+    print(feat_imp)
+    # feat_imp.plot(kind='bar', title='Feature Importances')
+    # plt.ylabel('Feature Importance Score')
+
+#%%
 def main():
-    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/train.csv")
-    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/test.csv")
+    train_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/train.csv")
+    test_df = pd.read_csv("/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/test.csv")
     originCombine = [train_df,test_df] # list 类型，DataFrame
 
     combine = []
@@ -356,89 +481,238 @@ def main():
         df = handleDf(drop(df))
         combine.append(df)
 
-    X_train = combine[0].drop('Survived',axis=1)
-    Y_train = combine[0]['Survived']
-    X_test = combine[1].copy()
+    X = combine[0].drop('Survived',axis=1)
+    Y = combine[0]['Survived']
+    X_test_origin = combine[1].copy()
 
-    print(X_train.shape,Y_train.shape,X_test.shape)
+    X = pd.get_dummies(X,columns=['Pclass','Sex','Embarked','Title'])
+    X_test_origin = pd.get_dummies(X_test_origin,columns=['Pclass','Sex','Embarked','Title'])
+    print(X.head(5))
+
+    poly = preprocessing.PolynomialFeatures(2,interaction_only=False)
+    poly.fit(X.values)
+    X_train = pd.DataFrame(poly.transform(X.values),columns=poly.get_feature_names(X.columns))
+    X_train=X_train.astype(int)
+
+    # one-hot
+    # onehotenc = preprocessing.OneHotEncoder()
+    # onehotenc.fit(X)
+    # X_train = onehotenc.transform(X).toarray()
+    # X_train=pd.DataFrame(X_train)
+
+    # X_train = X
+    Y_train = Y
+    # X_train,X_val,Y_train,Y_val = cross_validation.train_test_split(X,Y,random_state=0)
+    # X_val = cross_validation.train_test_split() 
+    # Y_val
+    X_test = pd.DataFrame(poly.transform(X_test_origin.values),columns=poly.get_feature_names(X_test_origin.columns))
+    X_test=X_test.astype(int)
+    # X_test = X_test_origin
+    # X_test = onehotenc.transform(X_test_origin).toarray()
+    # X_test=pd.DataFrame(X_test)
     
+    print(type(X_train))
+    print(type(X_test))
+    print(X_train.shape,Y_train.shape)
+    print(X_train.head(2))
+    print()
+    # print(X_test.head(5))
+    # print(X_train.shape,Y_train.shape,X_val.shape,Y_val.shape)
+
     logreg = LogisticRegression()
+    cul_score(logreg,X_train.values,Y_train.values)
+    # 画学习曲线
+    plot_learning_curve(logreg,'LogisticRegression Learning Curve',X_train.values,Y_train.values)
+    plt.show()
+
     logreg.fit(X_train,Y_train)
-    Y_pred = logreg.predict(X_test)
+    Y_pred_log = logreg.predict(X_test)
     acc_log = round(logreg.score(X_train,Y_train)*100,8)
     print(acc_log)
 
-    coeff_df = pd.DataFrame(X_train.columns)
-    coeff_df.columns = ['Feature']
-    coeff_df['Correlation'] = pd.Series(logreg.coef_[0])
+    # print(type(X_train))
+    # print(X_train.head(10))
+    # print(type(Y_train))
+    # xgboost
+    # model = xgb.XGBClassifier(
+    #     learning_rate =0.0997,
+    #     n_estimators=130,
+    #     max_depth=3,
+    #     min_child_weight=1,
+    #     gamma=0,
+    #     subsample=0.8,
+    #     colsample_bytree=0.8,
+    #     objective= 'binary:logistic',
+    #     nthread=4,
+    #     scale_pos_weight=1,
+    #     seed=27)
+
+    # 调参 n_estimators
+    # modelfit(model,X_train,Y_train,X_test)
+    # 调参 max_depth 、min_child_weight
+    # param_test1 = {
+    #     'max_depth':range(3,10,2),
+    #     'min_child_weight':range(1,6,2)
+    # }
+    # gsearch1 = GridSearchCV(estimator=model,param_grid=param_test1,scoring='roc_auc',n_jobs=4,iid=False,cv=5)
+    # gsearch1.fit(X_train,Y_train)
+    # print(gsearch1.grid_scores_)
+    # print(gsearch1.best_score_)
+    # print(gsearch1.best_params_)
+
+    # param_test2 = {
+    #     'max_depth':[1,2,3,4],
+    #     # 'min_child_weight':[4,5,6]
+    # }
+    # gsearch2 = GridSearchCV(estimator=model,param_grid=param_test2,scoring='roc_auc',n_jobs=4,iid=False,cv=5)
+    # gsearch2.fit(X_train,Y_train)
+    # print(gsearch2.grid_scores_)
+    # print(gsearch2.best_score_)
+    # print(gsearch2.best_params_)
+
+
+    # model.fit(X_train, Y_train)
+    # Y_pred_xgb = model.predict(X_test)
+
+    # submission = pd.DataFrame({
+    #     'PassengerId':test_df['PassengerId'],
+    #     'Survived':Y_pred_xgb 
+    # })
+    # # print(submission.head(20))
+    # submission.to_csv('/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/submission_xgb.csv',index=False)
+
+    # coeff_df = pd.DataFrame(X_train.columns)
+    # coeff_df.columns = ['Feature']
+    # coeff_df['Correlation'] = pd.Series(logreg.coef_[0])
     # print(coeff_df.sort_values(by='Correlation',ascending=False))
     
     svc = SVC()
+
+    cul_score(svc,X_train,Y_train)
+     # 画学习曲线
+    plot_learning_curve(logreg,'SVC Learning Curve',X_train,Y_train)
+    plt.show()
+
     svc.fit(X_train,Y_train)
-    Y_pred = svc.predict(X_test)
+    Y_pred_svc = svc.predict(X_test)
     acc_svc = round(svc.score(X_train,Y_train)*100,8)
     print(acc_svc)
 
-    knn = KNeighborsClassifier(n_neighbors = 3)
-    knn.fit(X_train, Y_train)
-    Y_pred = knn.predict(X_test)
-    acc_knn = round(knn.score(X_train, Y_train) * 100, 8)
-    print(acc_knn)
+    # knn = KNeighborsClassifier(n_neighbors = 3)
+    # knn.fit(X_train, Y_train)
+    # Y_pred_knn = knn.predict(X_test)
+    # acc_knn = round(knn.score(X_train, Y_train) * 100, 8)
+    # print(acc_knn)
 
-    gaussian = GaussianNB()
-    gaussian.fit(X_train, Y_train)
-    Y_pred = gaussian.predict(X_test)
-    acc_gaussian = round(gaussian.score(X_train, Y_train) * 100, 8)
-    print(acc_gaussian)
+    # # gaussian = GaussianNB()
+    # # gaussian.fit(X_train, Y_train)
+    # # Y_pred = gaussian.predict(X_test)
+    # # acc_gaussian = round(gaussian.score(X_train, Y_train) * 100, 8)
+    # # print(acc_gaussian)
 
-    perceptron = Perceptron()
-    perceptron.fit(X_train, Y_train)
-    Y_pred = perceptron.predict(X_test)
-    acc_perceptron = round(perceptron.score(X_train, Y_train) * 100, 8)
-    print(acc_perceptron)
+    # perceptron = Perceptron()
+    # perceptron.fit(X_train, Y_train)
+    # Y_pred_perceptron = perceptron.predict(X_test)
+    # acc_perceptron = round(perceptron.score(X_train, Y_train) * 100, 8)
+    # print(acc_perceptron)
 
-    linear_svc = LinearSVC()
-    linear_svc.fit(X_train, Y_train)
-    Y_pred = linear_svc.predict(X_test)
-    acc_linear_svc = round(linear_svc.score(X_train, Y_train) * 100, 8)
-    print(acc_linear_svc)
+    # linear_svc = LinearSVC()
+    # linear_svc.fit(X_train, Y_train)
+    # Y_pred_linear_svc = linear_svc.predict(X_test)
+    # acc_linear_svc = round(linear_svc.score(X_train, Y_train) * 100, 8)
+    # print(acc_linear_svc)
 
-    sgd = SGDClassifier()
-    sgd.fit(X_train, Y_train)
-    Y_pred = sgd.predict(X_test)
-    acc_sgd = round(sgd.score(X_train, Y_train) * 100, 8)
-    print(acc_sgd)
+    # sgd = SGDClassifier()
+    # sgd.fit(X_train, Y_train)
+    # Y_pred_sgd = sgd.predict(X_test)
+    # acc_sgd = round(sgd.score(X_train, Y_train) * 100, 8)
+    # print(acc_sgd)
 
-    decision_tree = DecisionTreeClassifier()
-    decision_tree.fit(X_train, Y_train)
-    Y_pred = decision_tree.predict(X_test)
-    acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 8)
-    print(acc_decision_tree)
 
-    random_forest = RandomForestClassifier(n_estimators=100)
+    # decision_tree = DecisionTreeClassifier()
+    # decision_tree.fit(X_train, Y_train)
+    # Y_pred_decision_tree = decision_tree.predict(X_test)
+    # acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 8)
+    # print(acc_decision_tree)
+
+    random_forest = RandomForestClassifier()
+
+    # n_estimators=50,criterion="gini",max_depth=4
+
+    # param_test = {
+    #     'n_estimators':range(10,200,20),
+    #     'criterion':['entropy','gini'],
+    #     'max_depth':range(1,5,1),
+    #     # 'min_samples_split':[2,5,10],
+    #     # 'min_weight_fraction_leaf':[0.0,0.1,0.2,0.3,0.4,0.5]
+    #     # 'min_child_weight':[4,5,6]
+    # }
+    # gsearch = GridSearchCV(estimator=random_forest,param_grid=param_test,scoring='roc_auc',n_jobs=4,iid=False,cv=5)
+    # gsearch.fit(X_train,Y_train)
+    # print(gsearch.grid_scores_)
+    # print(gsearch.best_score_)
+    # print(gsearch.best_params_)
+
+    # 画学习曲线
+    plot_learning_curve(random_forest,'RandomForestClassifier Learning Curve',X_train,Y_train)
+    plt.show()
+    cul_score(random_forest,X_train,Y_train)
+
     random_forest.fit(X_train, Y_train)
-    Y_pred = random_forest.predict(X_test)
-    random_forest.score(X_train, Y_train)
+    Y_pred_random_forest = random_forest.predict(X_test)
     acc_random_forest = round(random_forest.score(X_train, Y_train) * 100, 8)
     print(acc_random_forest)
 
-    models = pd.DataFrame({
-        'Model':['Support Vector Machines', 'KNN', 'Logistic Regression', 
-              'Random Forest', 'Naive Bayes', 'Perceptron', 
-              'Stochastic Gradient Decent', 'Linear SVC', 
-              'Decision Tree'],
-        'Score':[acc_svc, acc_knn, acc_log, 
-              acc_random_forest, acc_gaussian, acc_perceptron, 
-              acc_sgd, acc_linear_svc, acc_decision_tree]
-    })
-    print(models.sort_values(by='Score', ascending=False))
+    # models = pd.DataFrame({
+    #     'Model':['Support Vector Machines', 'KNN', 'Logistic Regression', 
+    #           'Random Forest', 'Perceptron', 
+    #           'Stochastic Gradient Decent', 'Linear SVC', 
+    #           'Decision Tree'],
+    #     'Score':[acc_svc, acc_knn, acc_log, 
+    #           acc_random_forest,  acc_perceptron, 
+    #           acc_sgd, acc_linear_svc, acc_decision_tree]
+    # })
+    # print(models.sort_values(by='Score', ascending=False))
     
     submission = pd.DataFrame({
         'PassengerId':test_df['PassengerId'],
-        'Survived':Y_pred # 取的 Random Forest 的 Y_pred
+        'Survived':Y_pred_log # 取的 Logistic Regression 的 Y_pred
     })
-    # submission.to_csv('/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/pandas_lesson2/submission1.csv',index=False)
-#%%
+    submission.to_csv('/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/submission_log.csv',index=False)
+   
+    submission = pd.DataFrame({
+        'PassengerId':test_df['PassengerId'],
+        'Survived':Y_pred_svc # 取的 svc 的 Y_pred
+    })
+    submission.to_csv('/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/submission_svc.csv',index=False)
+
+    submission = pd.DataFrame({
+        'PassengerId':test_df['PassengerId'],
+        'Survived':Y_pred_random_forest # 取的 Random Forest 的 Y_pred
+    })
+    submission.to_csv('/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/submission_rf.csv',index=False)
+   
+    # submission = pd.DataFrame({
+    #     'PassengerId':test_df['PassengerId'],
+    #     'Survived':Y_pred_svc # 取的 SVC 的 Y_pred
+    # })
+    # submission.to_csv('/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/submission_svc.csv',index=False)
+
+    # 模型融合竟然没有用
+
+    # Y_pre_cross = 0.6*Y_pred_random_forest+0.2*Y_pred_svc+0.2*Y_pred_log
+    # print(Y_pre_cross)
+    # submission = pd.DataFrame({
+    # 'PassengerId':test_df['PassengerId'],
+    # 'Survived':Y_pre_cross 
+    # })
+    # submission.loc[submission['Survived']>0.6,'Survived']=1
+    # submission.loc[submission['Survived']<=0.6,'Survived']=0
+    # submission['Survived'] = submission['Survived'].astype(int)
+    # submission.info() 
+    # print(submission.head(10))
+    # submission.to_csv('/Users/mac/2017/MyBag17/MyProject/python/IPythonNotebooks/GitTitanicPredict/submission_cro.csv',index=False)
+
 if __name__ == '__main__':
     main()
 
@@ -453,19 +727,6 @@ if __name__ == '__main__':
 # 2         Age    -0.220645
 # 0      Pclass    -0.970048
 # 1         Sex    -2.476070
-
-# test2 Sex*Pclass
-# 80.35914703 logistic regression 
-# 86.53198653 random forest 
-#       Feature  Correlation
-# 4    Embarked     0.266603
-# 7  Sex*Pclass     0.236189
-# 3        Fare     0.084895
-# 5       Title    -0.111686
-# 6  FamilySize    -0.129086
-# 2         Age    -0.213930
-# 0      Pclass    -1.118597
-# 1         Sex    -2.991686
 
 # test3 Embarked*Pclass
 # 80.35914703 logistic regression 
@@ -491,8 +752,38 @@ if __name__ == '__main__':
 # 0        Pclass    -0.976639
 # 1           Sex    -2.334776
 
-# 下个版本 version
+# test2 Sex*Pclass
+# 80.35914703 logistic regression 
+# 86.53198653 random forest 
+#       Feature  Correlation
+# 4    Embarked     0.266603
+# 7  Sex*Pclass     0.236189
+# 3        Fare     0.084895
+# 5       Title    -0.111686
+# 6  FamilySize    -0.129086
+# 2         Age    -0.213930
+# 0      Pclass    -1.118597
+# 1         Sex    -2.991686
+
+
 # 交叉验证集 
-# 增加多项式防止过拟合
+# 增加多项式
 # 调参
 # 评价标准，准确率，F score
+
+# 根据学习曲线，发现训练数据增多时精度并没有明显变化，分析是欠拟合
+# one-hot 编码，因为：类别并不是连续的，详细见sklearn onhotencoding 的文档
+
+# OneHotEncoding 对非树形算法有很大提升，比如逻辑回归
+# 但是却让 random forest 过拟合了，随机森林不适合onehot
+# test2 Sex*Pclass
+# logistic regression onehot 对提升很大
+# 之前F1=0.78929 (+/- 0.05),
+# 之后F1=0.81637 (+/- 0.05)
+# random forest onehot 对树模型没有太大提升
+# 之前 F1=0.78040 (+/- 0.09),
+# 之后 F1=0.78643 (+/- 0.08)
+
+# 11月14日更新
+# age 年龄区间减少后 正则后逻辑回归的成绩提升到了 0.79425
+# 下一步正则加上one-hot，应该会对逻辑回归有更大提升
